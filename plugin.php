@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 0.2.0
+Version: 1.0.0
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -49,29 +49,9 @@ function title_refetch_do_page() {
 	</div>
 
 HTML;
-
 }
-
-// Title Refetch on Stats Page Load (if sharebox is enabled)
-yourls_add_filter( 'share_box_data', 'title_refetch_share' );
-function title_refetch_share( $data ) {
-
-	if( $data['title'] !== '' ) {
-
-		if( in_array( yourls_get_protocol( $data['title'] ), array( 'http://', 'https://' ) ) ) {
-
-			$data['title'] = yourls_get_remote_title( $data['longurl'] );
-
-			$keyword = str_replace( YOURLS_SITE . '/' , '', $data['shorturl'] );
-			yourls_edit_link_title( $keyword, $data['title'] );
-
-			echo '<h3 style="color:green;">New Title: ' . $data['title'] . '</h3>';
-		}
-	}
-	return $data;
-}
-
-// Mass Title Refetch Via Admin Page
+// TODO consider maybe a button in the admin page?
+// Mass Title Refetch
 function title_refetch_batch_do() {
 	global $ydb;
 	$table = defined( 'YOURLS_DB_PREFIX' ) ? YOURLS_DB_PREFIX . 'url' : 'url';
@@ -89,9 +69,190 @@ function title_refetch_batch_do() {
 			}
 		}
 	}
-	if( $i > 0 ) {
-		 echo '<p style="color:green;">Total URL title updates: ' . $i . '</p>';
+	if( yourls_is_API() ) {
+		 return $i;
 	} else {
-		echo '<p style="color:green;">No URL title updates needed at this time.</p>';
+
+		if( $i > 0 ) {
+			 echo '<p style="color:green;">Total URL title updates: ' . $i . '</p>';
+		} else {
+			echo '<p style="color:green;">No URL title updates needed at this time.</p>';
+		}
 	}
+}
+
+// API addition to action=shorturl - this is the basic fix
+yourls_add_action( 'post_add_new_link', 'title_refetch_api_add' );
+function title_refetch_api_add( $data ) {
+
+	if( yourls_is_API() ) {
+
+		if ( isset( $_REQUEST['refetch'] ) && ( $_REQUEST['refetch'] == 'true') ) {
+
+			if( in_array( yourls_get_protocol( $data[2] ), array( 'http://', 'https://' ) ) ) {
+
+				$data[2] = yourls_get_remote_title( $data[0] );
+
+				yourls_edit_link_title( $data[1], $data[2] );
+			}
+		}
+	}
+}
+// API-Updates
+yourls_add_filter( 'api_action_refetch', 'title_refetch_api' );
+function title_refetch_api() {
+
+	// We need a target for the refetch
+	if( !isset( $_REQUEST['target'] ) ) {
+		return array(
+			'statusCode' => 400,
+			'simple'     => "Need a 'target' parameter",
+			'message'    => 'error: missing param',
+		);	
+	}
+	
+	// That target must be precise
+	if( !in_array( $_REQUEST['target'], array( 'title', 'all' ) ) ) {
+		return array(
+			'statusCode' => 400,
+			'simple'     => "Key: 'target' must match Value: 'title', or 'all'.",
+			'message'    => 'error: missing param',
+		);	
+	}
+	
+	// Refetch Single Title
+	if( $_REQUEST['target'] == 'title' ) {
+
+		// We need a short url to work with
+		if( !isset( $_REQUEST['shorturl'] ) ) {
+			return array(
+				'statusCode' => 400,
+				'simple'     => "Need a 'shorturl' parameter",
+				'message'    => 'error: missing param',
+			);	
+		}
+
+		$shorturl = $_REQUEST['shorturl'];
+		$keyword = str_replace( YOURLS_SITE . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
+
+		$keyword = yourls_sanitize_string( $keyword );
+		$url = yourls_get_keyword_longurl( $keyword );
+		$title = yourls_get_keyword_title( $keyword );
+
+		$do = title_refetch_do( $url, $keyword, $title );
+
+		if( $do ) {
+			switch ($do) {
+					case 1: 
+						$code	= 200;
+						$simple = "Title refetched: unchanged.";
+						$msg	= 'success: refetched';
+						break;
+					case 2: 
+						$code	= 200;
+						$simple = "Title refetched: updated.";
+						$msg	= 'success: refetched';
+						break;
+					case 3: 
+						$code	= 200;
+						$simple = "No refetch required.";
+						$msg	= 'success: no refetch';
+						break;
+				
+					default:
+						$code	= 200;
+						$simple = "Title refetched.";
+						$msg	= 'success: refetched';
+			}
+
+			return array(
+				'statusCode' => $code,
+				'simple'     => $simple,
+				'message'    => $msg,
+			);	
+		} else {
+			return array(
+				'statusCode' => 500,
+				'simple'     => 'Error: could not refetch title, not sure why :-/',
+				'message'    => 'error: unknown error',
+			);	
+		}
+	}
+	
+	// Refetch Entire DB
+	if( $_REQUEST['target'] == 'all' ) {
+
+		$auth = yourls_is_valid_user();
+		if( $auth !== true ) {
+			$format = ( isset($_REQUEST['format']) ? $_REQUEST['format'] : 'xml' );
+			$callback = ( isset($_REQUEST['callback']) ? $_REQUEST['callback'] : '' );
+			yourls_api_output( $format, array(
+				'simple' => $auth,
+				'message' => $auth,
+				'errorCode' => 403,
+				'callback' => $callback,
+			) );
+		}
+
+		$do = title_refetch_batch_do();
+
+		if( $do ) { 
+
+			if( $do == 0 ) {
+				$code	= 200;
+				$simple = "No refetching required";
+				$msg	= 'success: nothing refetched';
+			} 
+
+			elseif( $do > 0 ) {
+				$code	= 200;
+				$simple = $do . " titles refetched.";
+				$msg	= 'success: refetched';
+			}
+			
+			else {
+				$code	= 200;
+				$simple = "Titles checked and refetched.";
+				$msg	= 'success: refetched';
+			}
+
+			return array(
+				'statusCode' => $code,
+				'simple'     => $simple,
+				'message'    => $msg,
+			);
+
+		} else {
+			return array(
+				'statusCode' => 500,
+				'simple'     => 'Error: could not refetch database titles, not sure why :-/',
+				'message'    => 'error: unknown error',
+			);	
+		}
+	}
+}
+
+// Title Refetch for API-Updates
+function title_refetch_do( $url, $keyword, $title ) {
+
+	if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) ) {
+
+		$title_refetch = yourls_get_remote_title( $url );
+
+		if( $title == $title_refetch ) { 
+
+			$data = 1;
+
+		} else {
+
+			yourls_edit_link_title( $keyword, $title_refetch );
+			$data = 2;
+		}
+
+	} else {
+
+		$data = 3;
+	}
+
+	return $data;
 }
