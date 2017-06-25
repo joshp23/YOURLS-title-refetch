@@ -12,7 +12,11 @@ function titleRefetch( keyword, sig , id ) {
 		},
 		success: function(data) {
 			var here = window.location.href;
-			$( "#main_table" ).load( here + ' #main_table');
+			var cite = '#url-' + id;
+			$( cite ).fadeOut('fast', function() {
+				$( cite ).load( here + ' ' + cite);
+				$( cite ).fadeIn('fast');
+				});
 			feedback(data.message, 'success');
 		},
  		error: function(response){
