@@ -13,7 +13,10 @@ function titleRefetch( keyword, sig , id ) {
 		success: function(data) {
 			var here = window.location.href;
 			var cite = '#url-' + id;
-			$( cite ).load( here + ' ' + cite);
+			$( cite ).fadeOut('fast', function() {
+				$( cite ).load( here + ' ' + cite);
+				$( cite ).fadeIn('fast');
+				});
 			feedback(data.message, 'success');
 		},
  		error: function(response){
