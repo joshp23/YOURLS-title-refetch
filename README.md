@@ -8,18 +8,20 @@ Sometimes YOURLS does not fetch the title of a url that is being processed, this
 This plugin adds a new `key->value` pair to `action=shorturl`, and if it is present will check the title of the new link and attempt to repair it if it is malformed.
 
 ### Installation
-Clone this repo into the `YOURLS/user/plugins/` directory and enable it in the admin interface.
+Extract the `title-refetch` folder in this repo into the `YOURLS/user/plugins/` directory and enable it in the admin interface.
 
 ### Usage
 1.  Send the `refetch=true` along with a typical API shorturl call. Ex:
 ```
 https://eg.com/yourls-api.php?refetch=true&action=shorturl&url=https://some.really.long.url.com/it_never/ends/index.php
 ```
-2.  This plugin also creates a new action:
+2.  This plugin also creates a new api action:
 -  `action=refetch` which will trigger a refetch check according to one of the following required conditions:
    -  `target=title` which will check a single link and requires`shorturl=EX`. The short url can be a keyword or a full short url.
+   -  `target=title-force` skips the malformed url check and just looks for an updated title. Requires `shorturl=EX`.
    -  `target=all` which will run a check on the entire database and requires a valid log in (eg. signature or user/pass)
-3.  There is also a simple admin interface page where a database refetch check can be performed. A simple button in the admin section to update a single link is on the way.
+3.  There is a simple admin interface page where a database refetch check can be performed. 
+4.  There is an action button in the admin section to force-update single links at a a time.
 
 #### The catch
 While this doesn't cause the developers of third party applications to give attetnion to their code, it does make integration more flexible and provides an immediate working solution on YOURLS's end, akin to the [api-concurrence-fix](https://bitbucket.org/laceous/yourls-concurrency-fix) plugin. 
