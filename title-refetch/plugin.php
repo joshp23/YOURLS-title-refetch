@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.0.0
+Version: 1.1.0
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -50,7 +50,35 @@ function title_refetch_do_page() {
 
 HTML;
 }
-// TODO consider maybe a button in the admin page?
+
+// Add a Refetch Button to the Admin interface
+yourls_add_filter( 'action_links', 'title_refetch_admin_button' );
+function title_refetch_admin_button( $action_links, $keyword, $url, $ip, $clicks, $timestamp ) {
+
+	$id = yourls_string2htmlid( $keyword ); // used as HTML #id
+	$sig = yourls_auth_signature();
+	$home = YOURLS_SITE;
+	$jslink = "'$keyword','$sig','$id'";
+
+	// Add the Refetch button to the action links list
+	$action_links .= '<a href="javascript:void(0);" onclick="titleRefetch('. $jslink .');" id="trlink-'.$id.'" title="Title Refetch" class="button button_refetch">JS Refetch</a>';
+
+ 	return $action_links;
+}
+
+// Add the js/CSS to <head>
+yourls_add_action( 'html_head', 'title_refetch_css' );
+function title_refetch_css( $context ) {
+	// expose what page we are on
+	foreach($context as $k):
+		// If we are on the index page, use this css code for the button
+		if( $k == 'index' ):
+			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js\" type=\"text/javascript\"></script>" ;
+			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css\" type=\"text/css\" />";
+		endif;
+	endforeach;
+}
+
 // Mass Title Refetch
 function title_refetch_batch_do() {
 	global $ydb;
@@ -112,16 +140,16 @@ function title_refetch_api() {
 	}
 	
 	// That target must be precise
-	if( !in_array( $_REQUEST['target'], array( 'title', 'all' ) ) ) {
+	if( !in_array( $_REQUEST['target'], array( 'title', 'title-force', 'all' ) ) ) {
 		return array(
 			'statusCode' => 400,
-			'simple'     => "Key: 'target' must match Value: 'title', or 'all'.",
+			'simple'     => "Key: 'target' must match Value: 'title', 'title-force', or 'all'.",
 			'message'    => 'error: missing param',
 		);	
 	}
 	
 	// Refetch Single Title
-	if( $_REQUEST['target'] == 'title' ) {
+	if( $_REQUEST['target'] == 'title' || $_REQUEST['target'] == 'title-force') {
 
 		// We need a short url to work with
 		if( !isset( $_REQUEST['shorturl'] ) ) {
@@ -131,7 +159,7 @@ function title_refetch_api() {
 				'message'    => 'error: missing param',
 			);	
 		}
-
+		
 		$shorturl = $_REQUEST['shorturl'];
 		$keyword = str_replace( YOURLS_SITE . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
 
@@ -139,24 +167,27 @@ function title_refetch_api() {
 		$url = yourls_get_keyword_longurl( $keyword );
 		$title = yourls_get_keyword_title( $keyword );
 
-		$do = title_refetch_do( $url, $keyword, $title );
+		$target =  $_REQUEST['target'];
+
+		$do = title_refetch_do( $url, $keyword, $title, $target );
 
 		if( $do ) {
 			switch ($do) {
 					case 1: 
 						$code	= 200;
 						$simple = "Title refetched: unchanged.";
-						$msg	= 'success: refetched';
+						$msg	= 'success: unchanged title refetch';
 						break;
 					case 2: 
 						$code	= 200;
 						$simple = "Title refetched: updated.";
-						$msg	= 'success: refetched';
+						$msg	= 'success: updated title refetch';
+						$title  = yourls_get_keyword_title( $keyword );
 						break;
 					case 3: 
 						$code	= 200;
 						$simple = "No refetch required.";
-						$msg	= 'success: no refetch';
+						$msg	= 'success: no refetch required';
 						break;
 				
 					default:
@@ -169,6 +200,7 @@ function title_refetch_api() {
 				'statusCode' => $code,
 				'simple'     => $simple,
 				'message'    => $msg,
+				'title'	     => $title
 			);	
 		} else {
 			return array(
@@ -233,9 +265,9 @@ function title_refetch_api() {
 }
 
 // Title Refetch for API-Updates
-function title_refetch_do( $url, $keyword, $title ) {
+function title_refetch_do( $url, $keyword, $title, $target ) {
 
-	if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) ) {
+	if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) || $target == 'title-force' ) {
 
 		$title_refetch = yourls_get_remote_title( $url );
 
