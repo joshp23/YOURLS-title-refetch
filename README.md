@@ -4,6 +4,8 @@ A simple plugin to refetch poorly defined titles in YOURLS
 ### The Problem
 Sometimes YOURLS does not fetch the title of a url that is being processed, this happens frequently when using the api with certain 3rd party applications (which need attention from their developers). When this occures YOURLS uses the url itself as the title in the databse, which is less than desireable.
 
+Also, sometimes a website will update the title of an article or post. When displaying a [preview page](https://github.com/joshp23/YOURLS-Snapshot) it would be desireable to have the most up-to-date titles of pages on display.
+
 ### The solution
 This plugin adds a new `key->value` pair to `action=shorturl`, and if it is present will check the title of the new link and attempt to repair it if it is malformed.
 
