@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.1
+Version: 1.2.2
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -73,8 +73,10 @@ function title_refetch_css( $context ) {
 	foreach($context as $k):
 		// If we are on the index page, use this css code for the button
 		if( $k == 'index' ):
-			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js\" type=\"text/javascript\"></script>" ;
-			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css\" type=\"text/css\" />";
+			echo "\n<! --------------------------Title Refetch Start-------------------------- >\n";
+			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js\" type=\"text/javascript\"></script>\n" ;
+			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css\" type=\"text/css\" />\n";
+			echo "\n<! --------------------------Title Refetch End---------------------------- >\n";
 		endif;
 	endforeach;
 }
