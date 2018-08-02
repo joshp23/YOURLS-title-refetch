@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.2
+Version: 1.2.3
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
