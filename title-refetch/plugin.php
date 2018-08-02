@@ -85,7 +85,12 @@ function title_refetch_css( $context ) {
 function title_refetch_batch_do() {
 	global $ydb;
 	$table = defined( 'YOURLS_DB_PREFIX' ) ? YOURLS_DB_PREFIX . 'url' : 'url';
-	$records = $ydb->get_results("SELECT * FROM `$table` ORDER BY timestamp DESC");
+	if (version_compare(YOURLS_VERSION, '1.7.3') >= 0) {
+		$sql = "SELECT * FROM `$table` ORDER BY timestamp DESC";
+		$records = $ydb->fetchObjects($sql);
+	} else {
+		$records = $ydb->get_results("SELECT * FROM `$table` ORDER BY timestamp DESC");
+	}
 	if($records) {
 		$i = 0;
 		foreach( $records as $record ) {
