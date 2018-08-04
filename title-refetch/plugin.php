@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.4
+Version: 1.2.5
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -57,7 +57,7 @@ function title_refetch_admin_button( $action_links, $keyword, $url, $ip, $clicks
 
 	$id = yourls_string2htmlid( $keyword ); // used as HTML #id
 	$sig = yourls_auth_signature();
-	$home = yourls_site_url();
+	$home = YOURLS_SITE;
 	$jslink = "'$keyword','$sig','$id'";
 
 	// Add the Refetch button to the action links list
@@ -171,7 +171,7 @@ function title_refetch_api() {
 		}
 		
 		$shorturl = $_REQUEST['shorturl'];
-		$keyword = str_replace( yourls_site_url() . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
+		$keyword = str_replace( YOURLS_SITE . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
 
 		$keyword = yourls_sanitize_string( $keyword );
 		$url = yourls_get_keyword_longurl( $keyword );
