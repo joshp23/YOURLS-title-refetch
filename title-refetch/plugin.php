@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.3
+Version: 1.2.4
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -57,7 +57,7 @@ function title_refetch_admin_button( $action_links, $keyword, $url, $ip, $clicks
 
 	$id = yourls_string2htmlid( $keyword ); // used as HTML #id
 	$sig = yourls_auth_signature();
-	$home = YOURLS_SITE;
+	$home = yourls_site_url();
 	$jslink = "'$keyword','$sig','$id'";
 
 	// Add the Refetch button to the action links list
@@ -73,9 +73,12 @@ function title_refetch_css( $context ) {
 	foreach($context as $k):
 		// If we are on the index page, use this css code for the button
 		if( $k == 'index' ):
+			$file = dirname( __FILE__ )."/plugin.php";
+			$data = yourls_get_plugin_data( $file );
+			$v = $data['Version'];
 			echo "\n<! --------------------------Title Refetch Start-------------------------- >\n";
-			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js\" type=\"text/javascript\"></script>\n" ;
-			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css\" type=\"text/css\" />\n";
+			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js?v=".$v."\" type=\"text/javascript\"></script>\n" ;
+			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css?v=".$v."\" type=\"text/css\" />\n";
 			echo "\n<! --------------------------Title Refetch End---------------------------- >\n";
 		endif;
 	endforeach;
@@ -168,7 +171,7 @@ function title_refetch_api() {
 		}
 		
 		$shorturl = $_REQUEST['shorturl'];
-		$keyword = str_replace( YOURLS_SITE . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
+		$keyword = str_replace( yourls_site_url() . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
 
 		$keyword = yourls_sanitize_string( $keyword );
 		$url = yourls_get_keyword_longurl( $keyword );
