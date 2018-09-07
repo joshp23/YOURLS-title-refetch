@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.5
+Version: 1.2.6
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -69,19 +69,19 @@ function title_refetch_admin_button( $action_links, $keyword, $url, $ip, $clicks
 // Add the js/CSS to <head>
 yourls_add_action( 'html_head', 'title_refetch_css' );
 function title_refetch_css( $context ) {
-	// expose what page we are on
-	foreach($context as $k):
-		// If we are on the index page, use this css code for the button
-		if( $k == 'index' ):
-			$file = dirname( __FILE__ )."/plugin.php";
-			$data = yourls_get_plugin_data( $file );
-			$v = $data['Version'];
-			echo "\n<! --------------------------Title Refetch Start-------------------------- >\n";
-			echo "<script src=\"". yourls_plugin_url( dirname( __FILE__ ) ). "/assets/refetch.js?v=".$v."\" type=\"text/javascript\"></script>\n" ;
-			echo "<link rel=\"stylesheet\" href=\"". yourls_plugin_url( dirname( __FILE__ ) ) . "/assets/refetch.css?v=".$v."\" type=\"text/css\" />\n";
-			echo "\n<! --------------------------Title Refetch End---------------------------- >\n";
-		endif;
-	endforeach;
+	// If we are on the index page, use this css code for the button
+	if( $context[0] == 'index' ) {
+		$file = dirname( __FILE__ )."/plugin.php";
+		$data = yourls_get_plugin_data( $file );
+		$v = $data['Version'];
+		$loc = yourls_plugin_url( dirname( __FILE__ ) );
+		echo <<<HTML
+<! --------------------------Title Refetch Start-------------------------- >
+<script src="$loc/assets/refetch.js?v=$v" type="text/javascript"></script>
+<link rel="stylesheet" href="$loc/assets/refetch.css?v=$v" type="text/css" />
+<! --------------------------Title Refetch End---------------------------- >
+HTML;
+	}
 }
 
 // Mass Title Refetch
