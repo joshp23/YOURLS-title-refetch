@@ -3,53 +3,13 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.2.6
+Version: 1.3.0
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
 
 // No direct call
 if( !defined( 'YOURLS_ABSPATH' ) ) die();
-
-// Add the admin page
-yourls_add_action( 'plugins_loaded', 'title_refetch_add_page' );
-function title_refetch_add_page() {
-        yourls_register_plugin_page( 'title_refetch', 'Title Refetch', 'title_refetch_do_page' );
-}
-function title_refetch_do_page() {
-
-	// Check if a form was submitted
-	if( isset( $_POST['title_refetch_batch_chk'] ) && ( $_POST['title_refetch_batch_chk'] == 'yes') ) {
-		// Check nonce
-		yourls_verify_nonce( 'title_refetch' );
-		title_refetch_batch_do();
-	}
-	// Create nonce
-	$nonce = yourls_create_nonce( 'title_refetch' );
-
-	echo <<<HTML
-	<div id="wrap">
-		<form method="post">
-			<h3>Mass Title Refetch</h3>
-			<div style="padding-left: 10pt;">
-				<p>Batch process your entire database at once and fetch a new title for any short url that is found to be missing one.</p>
-				<p>This could be quite resource intensive and time consuming for larger databases. Alternatively, new titles are generated for urls tht need them whenever the sharebox is displayed on the stats page.</p>
-				<div class="checkbox">
-				  <label>
-				    <input name="title_refetch_batch_chk" type="hidden" value="no" >
-				    <input name="title_refetch_batch_chk" type="checkbox" value="yes" > Run?
-				  </label>
-				</div>
-				<br>
-			</div>
-			<hr/>
-			<input type="hidden" name="nonce" value="$nonce" />
-			<p><input type="submit" value="Submit" /></p>
-		</form>
-	</div>
-
-HTML;
-}
 
 // Add a Refetch Button to the Admin interface
 yourls_add_filter( 'action_links', 'title_refetch_admin_button' );
@@ -81,41 +41,6 @@ function title_refetch_css( $context ) {
 <link rel="stylesheet" href="$loc/assets/refetch.css?v=$v" type="text/css" />
 <! --------------------------Title Refetch End---------------------------- >
 HTML;
-	}
-}
-
-// Mass Title Refetch
-function title_refetch_batch_do() {
-	global $ydb;
-	$table = defined( 'YOURLS_DB_PREFIX' ) ? YOURLS_DB_PREFIX . 'url' : 'url';
-	if (version_compare(YOURLS_VERSION, '1.7.3') >= 0) {
-		$sql = "SELECT * FROM `$table` ORDER BY timestamp DESC";
-		$records = $ydb->fetchObjects($sql);
-	} else {
-		$records = $ydb->get_results("SELECT * FROM `$table` ORDER BY timestamp DESC");
-	}
-	if($records) {
-		$i = 0;
-		foreach( $records as $record ) {
-			$url = $record->url;
-			$title = $record->title;
-			$keyword = $record->keyword;
-			if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) ) {
-				$title = yourls_get_remote_title( $url );
-				yourls_edit_link_title( $keyword, $title );
-			$i++;
-			}
-		}
-	}
-	if( yourls_is_API() ) {
-		 return $i;
-	} else {
-
-		if( $i > 0 ) {
-			 echo '<p style="color:green;">Total URL title updates: ' . $i . '</p>';
-		} else {
-			echo '<p style="color:green;">No URL title updates needed at this time.</p>';
-		}
 	}
 }
 
@@ -179,46 +104,48 @@ function title_refetch_api() {
 
 		$target =  $_REQUEST['target'];
 
-		$do = title_refetch_do( $url, $keyword, $title, $target );
+		$data = 1;
 
-		if( $do ) {
-			switch ($do) {
-					case 1: 
-						$code	= 200;
-						$simple = "Title refetched: unchanged.";
-						$msg	= 'success: unchanged title refetch';
-						break;
-					case 2: 
-						$code	= 200;
-						$simple = "Title refetched: updated.";
-						$msg	= 'success: updated title refetch';
-						$title  = yourls_get_keyword_title( $keyword );
-						break;
-					case 3: 
-						$code	= 200;
-						$simple = "No refetch required.";
-						$msg	= 'success: no refetch required';
-						break;
-				
-					default:
-						$code	= 200;
-						$simple = "Title refetched.";
-						$msg	= 'success: refetched';
+		if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) || $target == 'title-force' ) {
+			$title_refetch = yourls_get_remote_title( $url );
+			if( $title == $title_refetch ) 
+				$data = 2;
+			else {
+				yourls_edit_link_title( $keyword, $title_refetch );
+				$data = 3;
 			}
-
-			return array(
-				'statusCode' => $code,
-				'simple'     => $simple,
-				'message'    => $msg,
-				'title'	     => $title
-			);	
-		} else {
-			return array(
-				'statusCode' => 500,
-				'simple'     => 'Error: could not refetch title, not sure why :-/',
-				'message'    => 'error: unknown error',
-			);	
 		}
+
+		switch ($data) {
+			case 1: 
+				$code	= 200;
+				$simple = "No refetch required.";
+				$msg	= 'success: no refetch required';
+				break;
+			case 2: 
+				$code	= 200;
+				$simple = "Title refetched: unchanged.";
+				$msg	= 'success: unchanged title refetch';
+				break;
+			case 3: 
+				$code	= 200;
+				$simple = "Title refetched: updated.";
+				$msg	= 'success: updated title refetch';
+				$title  = yourls_get_keyword_title( $keyword );
+				break;
+		
+			default:
+				$code	= 200;
+				$simple = "Title refetched.";
+				$msg	= 'success: refetched';
+		}
+
+		return array(
+			'statusCode' => $code,
+			'simple'     => $simple,
+			'message'    => $msg,
+			'title'	     => $title
+		);
 	}
 	
 	// Refetch Entire DB
@@ -236,65 +163,53 @@ function title_refetch_api() {
 			) );
 		}
 
-		$do = title_refetch_batch_do();
-
-		if( $do ) { 
-
-			if( $do == 0 ) {
-				$code	= 200;
-				$simple = "No refetching required";
-				$msg	= 'success: nothing refetched';
-			} 
-
-			elseif( $do > 0 ) {
-				$code	= 200;
-				$simple = $do . " titles refetched.";
-				$msg	= 'success: refetched';
-			}
-			
-			else {
-				$code	= 200;
-				$simple = "Titles checked and refetched.";
-				$msg	= 'success: refetched';
-			}
-
-			return array(
-				'statusCode' => $code,
-				'simple'     => $simple,
-				'message'    => $msg,
-			);
-
+		global $ydb;
+		$table = defined( 'YOURLS_DB_PREFIX' ) ? YOURLS_DB_PREFIX . 'url' : 'url';
+		if (version_compare(YOURLS_VERSION, '1.7.3') >= 0) {
+			$sql = "SELECT * FROM `$table` ORDER BY timestamp DESC";
+			$records = $ydb->fetchObjects($sql);
 		} else {
-			return array(
-				'statusCode' => 500,
-				'simple'     => 'Error: could not refetch database titles, not sure why :-/',
-				'message'    => 'error: unknown error',
-			);	
+			$records = $ydb->get_results("SELECT * FROM `$table` ORDER BY timestamp DESC");
 		}
-	}
-}
-
-// Title Refetch for API-Updates
-function title_refetch_do( $url, $keyword, $title, $target ) {
-
-	if( in_array( yourls_get_protocol( $title ), array( 'http://', 'https://' ) ) || $target == 'title-force' ) {
-
-		$title_refetch = yourls_get_remote_title( $url );
-
-		if( $title == $title_refetch ) { 
-
-			$data = 1;
-
-		} else {
-
-			yourls_edit_link_title( $keyword, $title_refetch );
-			$data = 2;
+		if($records) {
+			$i = 0;
+			foreach( $records as $record ) {
+				$url = $record->url;
+				$title = $record->title;
+				$keyword = $record->keyword;
+				if( in_array( yourls_get_protocol( $url ), array( 'http://', 'https://' ) ) 
+					&& $title == $url ) {
+					$new_title = yourls_get_remote_title( $url );
+					if ( $new_title !== $title ) {
+						yourls_edit_link_title( $keyword, $title );
+						$i++;
+					}
+				}
+			}
 		}
 
-	} else {
+		if( $i == 0 ) {
+			$code	= 200;
+			$simple = "No refetching required";
+			$msg	= 'success: nothing refetched';
+		} 
 
-		$data = 3;
+		elseif( $i > 0 ) {
+			$code	= 200;
+			$simple = $i . " titles refetched.";
+			$msg	= 'success: refetched';
+		}
+		
+		else {
+			$code	= 200;
+			$simple = "Titles checked and refetched.";
+			$msg	= 'success: refetched';
+		}
+
+		return array(
+			'statusCode' => $code,
+			'simple'     => $simple,
+			'message'    => $msg,
+		);
 	}
-
-	return $data;
 }
