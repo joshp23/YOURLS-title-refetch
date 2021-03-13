@@ -3,7 +3,7 @@
 Plugin Name: Title Refetch
 Plugin URI: https://github.com/joshp23/YOURLS-title-refetch
 Description: Refetch poorly defined titles
-Version: 1.3.0
+Version: 1.4.0
 Author: Josh Panter
 Author URI: https://unfettered.net
 */
@@ -12,18 +12,39 @@ Author URI: https://unfettered.net
 if( !defined( 'YOURLS_ABSPATH' ) ) die();
 
 // Add a Refetch Button to the Admin interface
-yourls_add_filter( 'action_links', 'title_refetch_admin_button' );
-function title_refetch_admin_button( $action_links, $keyword, $url, $ip, $clicks, $timestamp ) {
+yourls_add_filter( 'table_add_row_action_array', 'title_refetch_admin_button' );
+function title_refetch_admin_button ( $actions, $keyword ) {
 
-	$id = yourls_string2htmlid( $keyword ); // used as HTML #id
+	$id = yourls_string2htmlid( $keyword );
 	$sig = yourls_auth_signature();
-	$home = YOURLS_SITE;
 	$jslink = "'$keyword','$sig','$id'";
-
-	// Add the Refetch button to the action links list
-	$action_links .= '<a href="javascript:void(0);" onclick="titleRefetch('. $jslink .');" id="trlink-'.$id.'" title="Title Refetch" class="button button_refetch">JS Refetch</a>';
-
- 	return $action_links;
+	$refetch = array (
+		'refetch' => array(
+			'href'    => "javascript:void(0);",
+			'id'      => "trlink-$id",
+			'title'   => yourls_esc_attr__( 'Title Refetch' ),
+			'anchor'  => yourls__( 'JS Refetch' ),
+			'onclick' => "titleRefetch( $jslink );",
+			)
+		);
+	$result = array_merge( $actions, $refetch ); ;
+ 	return $result;
+}
+// Is authMgrPlus active?
+yourls_add_action( 'plugins_loaded', 'title_refetch_amp_check' );
+function title_refetch_amp_check() {
+	if( yourls_is_active_plugin( 'authMgrPlus/plugin.php' ) ) {
+		yourls_add_filter( 'amp_button_capability_map', 'title_refetch_button_cap' );
+		yourls_add_filter( 'amp_restricted_buttons', 'title_refetch_restricted' );
+	}
+}
+function title_refetch_button_cap ( $var ) {
+	$var += ['refetch' => ampCap::EditURL];
+	return $var;
+}
+function title_refetch_restricted ( $var ) {
+	$var += ['refetch'];
+	return $var;
 }
 
 // Add the js/CSS to <head>
